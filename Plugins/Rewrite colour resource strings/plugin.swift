@@ -1,8 +1,8 @@
 //
 //  plugin.swift
-//  ResourceRewriterForXcode
+//  
 //
-//  Created by Iggy Drougge on 2023-10-16.
+//  Created by Iggy Drougge on 2024-01-22.
 //
 
 import PackagePlugin
@@ -10,7 +10,7 @@ import XcodeProjectPlugin
 import Foundation
 
 @main
-struct ResourceRewriterPlugin: CommandPlugin, XcodeCommandPlugin {
+struct ColourPlugin: CommandPlugin, XcodeCommandPlugin {
     func performCommand(context: PluginContext, arguments: [String]) async throws {
         var argumentExtractor = ArgumentExtractor(arguments)
         let targetNames = argumentExtractor.extractOption(named: "target")
@@ -19,7 +19,7 @@ struct ResourceRewriterPlugin: CommandPlugin, XcodeCommandPlugin {
         let tool = try context.tool(named: "ResourceRewriterForXcode")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool.path.string)
-        process.arguments = files.map(\.path.string)
+        process.arguments = CollectionOfOne("colours") + files.map(\.path.string)
         try process.run()
         process.waitUntilExit()
         
@@ -38,7 +38,7 @@ struct ResourceRewriterPlugin: CommandPlugin, XcodeCommandPlugin {
         let tool = try context.tool(named: "ResourceRewriterForXcode")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool.path.string)
-        process.arguments = sourceFiles.map(\.string)
+        process.arguments = CollectionOfOne("colours") + sourceFiles.map(\.string)
         try process.run()
         process.waitUntilExit()
         

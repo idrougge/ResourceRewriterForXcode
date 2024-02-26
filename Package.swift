@@ -11,6 +11,8 @@ let package = Package(
     products: [
         .plugin(name: "Rewrite image resource strings", 
                 targets: ["Rewrite image resource strings"]),
+        .plugin(name: "Rewrite colour resource strings",
+                targets: ["Rewrite colour resource strings"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
@@ -33,6 +35,22 @@ let package = Package(
                     .writeToPackageDirectory(reason:
                         """
                         Your `UIImage(named:)` calls will be rewritten as `UImage(resource:)` calls.
+                        Please commit before running.
+                        """)
+                ]
+            ),
+            dependencies: [
+                .target(name: "ResourceRewriterForXcode"),
+            ]
+        ),
+        .plugin(
+            name: "Rewrite colour resource strings",
+            capability: .command(
+                intent: .sourceCodeFormatting,
+                permissions: [
+                    .writeToPackageDirectory(reason:
+                        """
+                        Your `UIColor(named:)` calls will be rewritten as `UIColor(resource:)` calls.
                         Please commit before running.
                         """)
                 ]

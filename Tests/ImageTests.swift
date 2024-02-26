@@ -1,5 +1,5 @@
 //
-//  ResourceRewriterForXcodeTests.swift
+//  ImageTests.swift
 //  
 //
 //  Created by Iggy Drougge on 2023-10-17.
@@ -9,7 +9,7 @@ import XCTest
 import SwiftParser
 @testable import ResourceRewriterForXcode
 
-final class ResourceRewriterForXcodeTests: XCTestCase {
+final class ImageTests: XCTestCase {
 
     let rewriter = RewriteImageLiteral()
 

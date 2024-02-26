@@ -12,14 +12,24 @@ import Foundation
 
 @main
 struct RewriteTool: ParsableCommand {
+    enum Mode: String, ExpressibleByArgument {
+        case images, colours
+    }
+    
+    @Argument var mode: Mode
     @Argument var files: [String] = []
     
     mutating func run() throws {
+        let rewriter = switch mode {
+        case .images: RewriteImageLiteral()
+        case .colours: RewriteColourLiteral()
+        }
+        
         for file in files {
             let resource = URL(filePath: file)
             let contents = try String(contentsOf: resource)
             let sources = Parser.parse(source: contents)
-            let converted = RewriteImageLiteral().visit(sources)
+            let converted = rewriter.visit(sources)
             try converted.description.write(to: resource, atomically: true, encoding: .utf8)
         }
     }
@@ -121,6 +131,102 @@ class RewriteImageLiteral: SyntaxRewriter {
     }
 }
 
+class RewriteColourLiteral: SyntaxRewriter {
+    override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
+        guard let calledExpression = node.calledExpression.as(DeclReferenceExprSyntax.self)
+        else {
+            return super.visit(node)
+        }
+        switch calledExpression.baseName.tokenKind {
+        case .identifier("UIColor"): return rewriteUIKitColour(node)
+        case .identifier("Color"): return rewriteSwiftUIColour(node)
+        case _: return super.visit(node)
+        }
+    }
+    
+    // Since `UIColor(named:)` returns an optional, and `UIColor(resource:)` does not, we need to remove the trailing question mark.
+    override func visit(_ node: OptionalChainingExprSyntax) -> ExprSyntax {
+        guard let expression = node.expression.as(FunctionCallExprSyntax.self),
+              let calledExpression = expression.calledExpression.as(DeclReferenceExprSyntax.self),
+              case .identifier("UIColor") = calledExpression.baseName.tokenKind
+        else {
+            return super.visit(node)
+        }
+        return rewriteUIKitColour(expression)
+    }
+    
+    // Since `UIColor(named:)` returns an optional, and `UIColor(resource:)` does not, we need to remove force unwrap exclamation marks.
+    override func visit(_ node: ForceUnwrapExprSyntax) -> ExprSyntax {
+        guard let expression = node.expression.as(FunctionCallExprSyntax.self),
+              let calledExpression = expression.calledExpression.as(DeclReferenceExprSyntax.self),
+              case .identifier("UIColor") = calledExpression.baseName.tokenKind
+        else {
+            return super.visit(node)
+        }
+        return rewriteUIKitColour(expression)
+    }
+    
+    private func rewriteUIKitColour(_ node: FunctionCallExprSyntax) -> ExprSyntax {
+        guard let argument = node.arguments.first,
+              argument.label?.text == "named",
+              let stringLiteralExpression = argument.expression.as(StringLiteralExprSyntax.self),
+              let value = stringLiteralExpression.representedLiteralValue, // String interpolation is not allowed.
+              !value.isEmpty
+        else {
+            return super.visit(node)
+        }
+        
+        var node = node
+        
+        let resourceName = normaliseLiteralName(value)
+        
+        let expression = MemberAccessExprSyntax(
+            period: .periodToken(),
+            declName: DeclReferenceExprSyntax(baseName: .identifier(resourceName))
+        )
+        
+        let newArgument = LabeledExprSyntax(
+            label: .identifier("resource"),
+            colon: .colonToken(trailingTrivia: .space),
+            expression: expression
+        )
+        
+        node.arguments = LabeledExprListSyntax([newArgument])
+        
+        return super.visit(node)
+    }
+    
+    private func rewriteSwiftUIColour(_ node: FunctionCallExprSyntax) -> ExprSyntax {
+        guard let calledExpression = node.calledExpression.as(DeclReferenceExprSyntax.self),
+              case .identifier("Color") = calledExpression.baseName.tokenKind,
+              let argument = node.arguments.first,
+              argument.label == .none,
+              let stringLiteralExpression = argument.expression.as(StringLiteralExprSyntax.self),
+              let value = stringLiteralExpression.representedLiteralValue, // String interpolation is not allowed.
+              !value.isEmpty
+        else { return super.visit(node) }
+        
+        var node = node
+        
+        let resourceName = normaliseLiteralName(value)
+        
+        let expression = MemberAccessExprSyntax(
+            period: .periodToken(),
+            declName: DeclReferenceExprSyntax(baseName: .identifier(resourceName))
+        )
+        
+        let newArgument = LabeledExprSyntax(
+            label: .none,
+            colon: .none,
+            expression: expression
+        )
+        
+        node.arguments = LabeledExprListSyntax([newArgument])
+        
+        return super.visit(node)
+    }
+}
+
 private let separators = CharacterSet(charactersIn: " _-")
 
 private func normaliseLiteralName(_ name: String) -> String {
@@ -146,7 +252,7 @@ private func normaliseLiteralName(_ name: String) -> String {
         resourceName = "_" + resourceName
     }
     
-    return path + resourceName
+    return path + resourceName.decomposedStringWithCanonicalMapping
 }
 
 private func extractPathComponents(from name: String) -> (path: String, name: String) {

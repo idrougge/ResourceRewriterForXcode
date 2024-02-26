@@ -1,14 +1,18 @@
 # Resource Rewriter for Xcode 15+
 
-This plugin lets you automatically rewrite UIKit/SwiftUI image instantations from unreliable string-based inits such as:
+This plugin lets you automatically rewrite UIKit/SwiftUI image and colour instantations from unreliable string-based inits such as:
 ```swift
-UIImage(named: "some image")
-Image("some image")
+UIImage(named: "some icon")
+Image("some icon")
+UIColor(named: "light blue green")
+Color("light blue green")
 ```
-into `ImageResource` literals (as introduced in Xcode 15) such as:
+into `ImageResource` and `ColorResource` literals (as introduced in Xcode 15) such as:
 ```swift
-UIImage(resource: .someImage)
-Image(.someImage)
+UIImage(resource: .someIcon)
+Image(.someIcon)
+UIColor(resource: .lightBlueGreen)
+Color(.lightBlueGreen)
 ```
 
 ## Installation
@@ -27,7 +31,7 @@ dependencies: [
 
 ## Usage
 
-After a rebuild, a secondary click on your project (or package) in the Project Navigator brings up a menu where you will now find the option "Rewrite image resource strings". Select that option and the target where you want your image references to be fixed up.
+After a rebuild, a secondary click on your project (or package) in the Project Navigator brings up a menu where you will now find the options "Rewrite image resource strings" and "Rewrite colour resource strings". Select that option and the target where you want your asset references to be fixed up.
 
 ![Project menu](https://github.com/idrougge/ResourceRewriterForXcode/assets/17124673/604c9023-a9e4-4bb3-8c0e-4af256feb159)
 
@@ -37,11 +41,11 @@ As the `UIImage(named:)` init returns an optional and `UIImage(resource:)` does 
 
 If you have turned off generated asset symbols, go into your build settings and enable **Generate Asset Symbols** (`ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS`) or the resource names will not resolve.
 
-After you are done, you are free to remove this dependency again, possibly introducing a linter rule forbidding calls to string-based image inits.
+After you are done, you are free to remove this dependency again, possibly introducing a linter rule forbidding calls to string-based asset inits.
 
 ## Limitations
 
 * Short-hand calls such as `image = .init(named: "Something")` aren't handled.
 * Any image name built with string interpolation or concatenation is untouched as those must be resolved at run-time.
-* The plugin strives to follow Xcode's pattern for translating string-based image names into `ImageResource` names but there may be cases where this does not match. Please open an issue in that case so it may added.
-* Functions or enums that return or accept string names, as well as wrapper functions or generated code must be rewritten manually if you wish to use `ImageResource` for those. You may fork and customise this plugin if such uses permeate your project.
+* The plugin strives to follow Xcode's pattern for translating string-based asset names into `ImageResource/ColorResource` names but there may be cases where this does not match. Please open an issue in that case so it may added.
+* Functions or enums that return or accept string names, as well as wrapper functions or generated code must be rewritten manually if you wish to use `ImageResource/ColorResource` for those. You may fork and customise this plugin if such uses permeate your project.
